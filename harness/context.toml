@@ -1,0 +1,50 @@
+# context.toml — information architecture schema for the harness repo
+#
+# Declares the document types this repo recognizes, where each type
+# lives, and what frontmatter fields each type requires. The classify
+# command walks the tree and validates every doc against this schema.
+# The index command emits per-type manifests derived from valid docs.
+
+[base]
+# Fields required on every doc, regardless of type.
+required = ["id", "type", "title", "created", "tags"]
+optional = ["status", "updated", "supersedes", "superseded_by"]
+
+[classify]
+# Directories the classifier should skip entirely.
+ignore = [
+  ".git",
+  "dist",
+  "node_modules",
+  "vendor",
+  # Acceptance-spec fixtures are deliberately malformed test data —
+  # they are not docs and must not be validated.
+  "docs/acceptance/*/fixture",
+]
+
+[types.adr]
+# Architecture Decision Records. Capture a decision, its context, and
+# its consequences. Append-only — supersede rather than edit.
+directory = "docs/adrs"
+required = ["decision", "consequences"]
+
+[types.spec]
+# Implementation specs. Prose contracts describing what a command,
+# subsystem, or component does. Harvested from working code, not
+# speculated.
+directory = "docs/specs"
+required = ["scope", "contract"]
+
+[types.acceptance]
+# Executable specifications. Each acceptance spec is a directory:
+#   docs/acceptance/<name>/
+#     spec.md          ← the file this frontmatter is on; Given/When/Then
+#     fixture/         ← a self-contained tree the command runs against
+#     cmd              ← one-line invocation
+#     expected.json    ← { exit_code, stdout_contains?, stderr_contains?, issues? }
+#
+# The spec.md frontmatter declares what scenarios the spec exercises
+# and what exit code the runner expects. Future "harness acceptance run"
+# will execute these and compare actual output to expected.json.
+directory = "docs/acceptance"
+required = ["scenarios", "expected_exit_code", "exercises"]

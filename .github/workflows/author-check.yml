@@ -1,0 +1,38 @@
+name: author-check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify commit authorship
+        env:
+          EXPECTED: info@productengineering.fm
+          BEFORE:   ${{ github.event.before }}
+          AFTER:    ${{ github.event.after }}
+          PR_BASE:  ${{ github.event.pull_request.base.sha }}
+          PR_HEAD:  ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "${PR_HEAD:-}" ]; then
+            range="${PR_BASE}..${PR_HEAD}"
+          elif [ -n "${BEFORE:-}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ]; then
+            range="${BEFORE}..${AFTER}"
+          else
+            range="${AFTER}"
+          fi
+
+          bad=$(git log --format='%H %ae %ce' ${range} | awk -v e="${EXPECTED}" '$2 != e || $3 != e')
+          if [ -n "${bad}" ]; then
+            echo "Commits in this repo must be authored and committed as ${EXPECTED}."
+            echo "Offending commits (sha author committer):"
+            echo "${bad}"
+            exit 1
+          fi
+          echo "OK: every commit in ${range} is authored as ${EXPECTED}."

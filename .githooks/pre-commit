@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# All commits in this repo must be authored and committed as the
+# org identity. CI enforces the same rule on the server side; this
+# hook is the local safety net.
+set -e
+
+EXPECTED="info@productengineering.fm"
+
+ae=$(git var GIT_AUTHOR_IDENT    | sed -E 's/.*<(.+)>.*/\1/')
+ce=$(git var GIT_COMMITTER_IDENT | sed -E 's/.*<(.+)>.*/\1/')
+
+if [ "$ae" != "$EXPECTED" ] || [ "$ce" != "$EXPECTED" ]; then
+  echo "Refusing commit: author/committer must be ${EXPECTED}." >&2
+  echo "  author:    ${ae}" >&2
+  echo "  committer: ${ce}" >&2
+  echo >&2
+  echo "Configure this clone:" >&2
+  echo "  git config user.name  prodengfm" >&2
+  echo "  git config user.email ${EXPECTED}" >&2
+  exit 1
+fi
