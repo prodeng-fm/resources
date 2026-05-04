@@ -1,25 +1,17 @@
 # Quality Assurance — Target State Document
 
-This document details the QA target state for 2028 — what quality looks like when the platform enforces it, how we get there, and how teams experience the change. It is the detail artifact behind the QA PID. Audience: CTO, engineering directors, workstream leads.
+This target state document describes how quality is built into the software lifecycle, across every class of software in the org. It covers the design principles that govern it, the operating model that runs it, and the architecture that realises both.    
 
----
+## 1 Quality across the lifecycle
 
-## 1 Foundations
-
-### Governing Principle
-
-Quality is produced by the system itself, not by people following process. The pipeline — not a sign-off review board — determines whether software can ship. Control evidence is generated as a byproduct of delivery, not assembled after the fact. This applies equally whether a human or an AI agent produced the change. The actor changes; what must be true does not.
-
-### Lifecycle Across Software Classes
-
-The strategic intent paper frames how software in the org is *planned, built, verified, deployed, operated, and evidenced* — a single end-to-end lifecycle from intent through runtime observability. For the QA workstream this lifecycle has four phases:
+Quality emerges from embedding controls into the systems that produce, run, and govern software — not from people remembering to follow process. The **control catalogue** defines what must be enforced; the **platform** is where enforcement happens. Controls can be embedded along the lifecycle from intent to operation.
 
 - **Define & Design** — intent captured in a form that can be validated; critical functionality identified and signed off
 - **Code & Build** — the artifact is produced (source code, configuration, model, integration); controls run during authorship and at submission
 - **Validate & Test** — the artifact is proven against intent; functional, non-functional, and integration validation land here
 - **Release & Operate** — the validated artifact is promoted, deployed, monitored; operational evidence feeds back to upstream controls
 
-These phases are universal — every piece of software that reaches production passes through them in some form. What fills each phase varies materially by software class.
+These phases are universal — every piece of software that reaches production passes through them. What fills each phase varies by class of software; the table below shows what each phase looks like for each class the org runs.
 
 | Software class | Define & Design | Code & Build | Validate & Test | Release & Operate |
 |---|---|---|---|---|
@@ -29,18 +21,13 @@ These phases are universal — every piece of software that reaches production p
 | **COTS** (e.g. Confluence, Guidewire, Outlook on-prem) | Document critical business workflows the COTS supports; configuration intent; integration boundaries | Configuration captured as code where possible; integration code follows custom-build discipline | UAT for critical workflows; version / upgrade impact analysis; integration boundary tests | Vendor patch cadence; integration health monitoring; upgrade validation |
 | **SaaS** (e.g. Stripe, Salesforce) | Document critical business workflows the SaaS supports; tenant / feature configuration intent; data flows | Tenant configuration changes under change control; integration code follows custom-build discipline | Integration tests; vendor SLA validation; configuration drift checks | Vendor change tracking; integration health monitoring; SLA monitoring |
 
-Two cross-cutting elements run through every phase regardless of software class:
+Three layers run across every phase regardless of class:
 
-- **The control catalogue** (governance workstream) is the central register of controls. Each domain workstream authors its controls platform-agnostically; platform / class workstreams pick them up and implement through the enforcement mode appropriate to each class — policy-as-code, platform-native configuration, or team-demonstrated evidence. The currently approved QA standard's controls primarily describe release-time evidence; the target state extends the catalogue with lifecycle controls (Define & Design, Code & Build) per class.
-- **Enterprise knowledge** (operational data, incident records, telemetry) feeds back into upstream controls regardless of class. Incidents for an Outlook integration inform the same kind of control sharpening as production incidents for a custom-build service — what was missing, what control should have caught it.
+- **Control catalogue** — what must be true. Pushed into platforms via policy-as-code or platform-native configuration — governance by design, not process compliance on top. The currently approved QA standard's catalogue covers release-time controls; the target state extends it with Define & Design and Code & Build controls per class.
+- **Platform** — where controls become real. The term is generic: a backup quality control embedded in a database service in the developer platform, a release gate in CI/CD, a configuration constraint in Palantir, a vendor SLA monitor for SaaS. The platform varies; the principle of pushing controls into it doesn't.
+- **Enterprise knowledge** — the artifacts the lifecycle produces and consumes at every phase: requirements and specs (Define & Design), code and configuration (Code & Build), validation evidence (Validate & Test), operational data and incidents (Release & Operate). Feeds controls forward — specs become validation targets — and back — incidents in any class (an Outlook integration as much as a custom service) surface which controls were missing or weak.
 
-In 2026, criticality is assigned at APM level by governance, and large APMs are tested as critical end-to-end. Where an APM is hybrid — custom code, COTS components, SaaS integrations under one classification — the dominant class is assigned and guidelines describe how to apply the QA standard to sub-components. Per-class guidelines for the existing QA standard are a 2026 deliverable; full per-class target states and catalogue extensions follow from 2026 H2 onwards.
-
-§2 below describes the SDLC target state in depth — its design principles, operating model, and architecture. Per-class target states for COTS and SaaS follow in their own documents, sequenced from 2027 onward.
-
----
-
-## 2 SDLC Target State
+## 2 QA Target State - SDLC
 
 This section describes the target state for **SDLC custom-build software** in concrete terms — the design principles that govern it, the operating model walked phase-by-phase, and the target architecture. Low-code platforms and ML / analytical workloads inherit the same shape with class-specific variants noted where they differ. Per-class architectures for COTS and SaaS — which differ enough that components like the harness and pipeline do not apply in the SDLC sense — are sequenced as 2027 deliverables in their own target states (see §1 *Lifecycle Across Software Classes* for their phase content).
 
@@ -165,18 +152,6 @@ Validated artifacts are deployed through governed promotion. Operational data fl
 ### Target Architecture
 
 The components below realise the operating model walked above — their integration, the scope they span, and how controls mature toward continuous assurance. Platform-agnostic in definition; platform-specific in enforcement.
-
-#### Scope of this Architecture
-
-This architecture addresses **custom-build software** end-to-end — code authored in managed repositories, built and validated through CI/CD, promoted to production through governed pipelines.
-
-- **Custom-build on ADO** (or equivalent CI/CD for managed code repositories) — primary scope
-- **Low-code platforms** (Palantir, Power Platform) — inherit the SDLC shape with platform-native variants of the components below; per-class extension follows in 2026 H2
-- **ML / analytical workloads** — inherit the SDLC shape with class-specific decision-spec, training-pipeline, and model-registry variants; per-class extension follows in 2026 H2
-- **COTS and SaaS** — out of scope for *this architecture*; their target states are sequenced as 2027 deliverables (see §1 *Lifecycle Across Software Classes* for their phase content)
-- **End-user computing (EUC) / End-User Applications (EUA)** — out of scope entirely; user-developed spreadsheets, personal macros, and ad-hoc tools not managed as business applications
-
-For low-code and ML/analytical platforms in scope, the architecture must be **considered per class** — component responsibilities and enforcement mechanisms (policy-as-code, platform-native configuration, or team-demonstrated evidence) are defined by the platform team and the QA workstream together. This TS defines the architectural contract for custom-build; platform-specific architecture documents carry the implementation for each class.
 
 "Platform" in this architecture is a concept — governed promotion with validated controls — not a specific tool. Custom-build on ADO implements it one way; Palantir implements an equivalent natively; Power Platform through its ALM; model registries through validation pipelines.
 
