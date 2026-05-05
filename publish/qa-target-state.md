@@ -1,6 +1,6 @@
 # Quality Assurance — Target State Document
 
-This target state document describes how quality is built into the software lifecycle, across every class of software in the org. It covers the design principles that govern it, the operating model that runs it, and the architecture that realises both.    
+This target state document describes how quality is built into the software lifecycle, across every class of software in the org. It covers the design principles that govern it and the target architecture that realises them: components, integration, and controls across the lifecycle.
 
 ## 1 Quality across the lifecycle
 
@@ -29,7 +29,7 @@ Three layers run across every phase regardless of class:
 
 ## 2 Target state — SDLC custom-build
 
-The rest of this document goes deep on **SDLC custom-build**. The design principles come first — the requirements the architecture has to meet — followed by the operating model that walks them through the lifecycle, and the target architecture that realises both.
+The rest of this document goes deep on **SDLC custom-build**. The design principles come first — the requirements the architecture has to meet — followed by the target architecture that realises them: components, integration, and controls across the lifecycle.
 
 ### Design Principles
 
@@ -51,11 +51,76 @@ Eight architectural principles make the SDLC target state work:
 
 **8. Universal coverage, proportionate depth.** Every application is in scope. Tier determines the depth of controls that apply, not whether they apply. No application opts out of proportionate quality expectations.
 
-### Target Operating Model
+### Target Architecture
+
+The architecture below realises the principles above. Controls run across the lifecycle at four loci:
+
+1. **Specification** — where intent is captured, reviewed, and signed off before code begins.
+2. **Development** — where code is changed by humans or autonomous agents, with controls present at the point of change.
+3. **Validation** — where changed code is checked against intent before promotion.
+4. **Runtime** — where validated code is deployed, observed, and operated.
+
+Each locus is platform-agnostic in definition but platform-specific in enforcement.
+
+*[Diagram 1 — Loci flow. Four equal-sized boxes arranged left-to-right: **Specification** → **Development** → **Validation** → **Runtime**. Forward arrows between adjacent boxes representing code progression (intent → changed code → validated artefact → running system). One return arrow from Runtime back to Specification representing operational feedback into intent (incidents, drift, performance evidence reshape future requirements).]*
+
+The components below — and the design threads that connect them — realise this model.
+
+#### Core Components
+
+*[Diagram 2 — Loci with internals. Same four boxes as Diagram 1, opened to show contents.
+- **Specification box:** the work management system (e.g. ADO Boards) holding executable specifications, requirement-to-change traceability links, and a sign-off gate before downstream work begins.
+- **Development box:** three internal sub-boxes — **workstation**, **agent sandbox**, **AI-ops loop** — each containing a **harness** running shared controls at the point of authorship.
+- **Validation box:** the **pipeline** as a sequence of stages — CI (compile, lint, unit and integration tests, static analysis) → functional acceptance → non-functional acceptance → security scanning → artefact signing — emitting an immutable signed release candidate.
+- **Runtime box:** infrastructure containers (compute, storage, database, networking) with **policy enforcement points** overlaid (drift detection, identity, encryption, network segmentation) and observability collectors emitting telemetry.
+
+Underneath all four boxes, two cross-cutting bands:
+- **Control catalogue** (band immediately below): central library of control definitions, with arrows running upward into each locus to show controls landing into enforcement points.
+- **Enterprise knowledge** (band at the bottom): measurement chain collecting evidence — specifications and traceability from Specification, build/coverage metrics from Development, validation results from Validation, runtime telemetry and incidents from Runtime. A return-path arrow runs from Enterprise knowledge back up into Specification (intent calibration) and into the Control catalogue (gate threshold refinement).]*
+
+The architecture realises each locus through specific components, with two cross-cutting layers spanning all four. The platform team builds and maintains each; application teams consume them through designed interfaces.
+
+**Specification.** Where intent is captured and approved before code begins.
+
+- **Work management** — tracks the implementation of specifications. Every change links to an approved work item; sign-off happens here; traceability flows from here through the rest of the architecture.
+- **Executable specifications** — the machine-validatable expression of intent. Versioned alongside code, so the same artefact that guides implementation also drives validation later.
+
+**Development.** Where code is changed by humans or autonomous agents.
+
+- **Harness** — runs the same controls the pipeline runs at the point of authorship (workstation, agent sandbox, AI-ops loop). Specifications, lint, static analysis, unit and integration tests, and policy checks execute locally with parity guaranteed by shared definitions in the repository. A green harness check means the same thing as a green pipeline check, which is what makes agent-driven change tractable.
+
+**Validation.** Where changed code is checked against intent before promotion.
+
+- **Pipeline** — the single authority on releasability. Re-executes the controls the harness ran, then adds end-to-end tests, non-functional acceptance, security scanning, and environment-level compliance in stages (CI → functional → NFR → security → artefact signing). Produces immutable signed release candidates with provenance; promotes through progressively demanding environments; enforces gates at each transition.
+- **Exploratory testing** — humans investigate how the product behaves in scenarios that cannot be pre-scripted: edge cases, workflow combinations, real-world usage patterns. Required for tier-applicable applications.
+
+**Runtime.** Where validated code is deployed and operated.
+
+- **Infrastructure platform** — provides compute, storage, database, and networking via governed templates. Workload manifests turn application-team declarations into compliant infrastructure; runtime guardrails (drift detection, identity, encryption, network segmentation) are enforced continuously via policy-as-code.
+- **Observability** — structured logging, standard metrics, deployment visibility, monitoring and alerting against SLOs. Applied by default through platform templates; unobservable services cannot be considered production-ready.
+
+**Cross-cutting.** Two layers span all four loci — one defines what's enforced, the other measures what happens.
+
+- **Control catalogue** — the central library that separates *what's enforced* from *how it's enforced*. Definitions are authored per domain (QA, CI/CD, observability, infrastructure) platform-agnostically; implementations vary per platform — policy-as-code where mechanical enforcement is supported, platform-native configuration where controls are built into the product, or team-demonstrated evidence where neither applies. Mature platforms inherit quality by default; immature or exception-type platforms evidence compliance manually until they catch up.
+- **Enterprise knowledge** — the chain of artefacts produced and consumed across all four loci: specs and traceability (Specification), code and build evidence (Development), validation results (Validation), telemetry and incidents (Runtime). Feeds forward — specs become validation targets — and back — production evidence shapes specification investment and gate calibration. DORA metrics, defect detection ratios, and estate-wide quality visibility flow from this layer.
+
+#### How the Components Connect
+
+Four design threads run through the four components. Each thread crosses multiple components; the components cohere because they collectively realise all four threads.
+
+**Thread 1 — Requirements → Executable Specifications → Evidence.** Authored in the **Harness** (where specifications are drafted and validated against templates). Validated through the **Pipeline** (where specs are checked against implementation as part of promotion). Governed by the **Control catalogue** (where spec format, coverage, and sign-off controls are defined platform-agnostically). Evidenced via the **Enterprise knowledge** (where traceability chains and coverage metrics flow). In an agent-driven world, specifications are the governance mechanism: they constrain what agents build; the pipeline validates what they produce.
+
+**Thread 2 — Application Code → Pipeline → Production.** Realised by the **Harness** (where code is written with fast, trustworthy feedback from shared controls) and the **Pipeline** (where the same controls re-execute for enforcement, producing immutable signed artifacts). Gate definitions and thresholds live in the **Control catalogue**. Delivery metrics and defect detection flow through the **Enterprise knowledge**. Key design decision: shared control implementation — validation logic defined once in the repository, executed identically locally and in the pipeline.
+
+**Thread 3 — Infrastructure → Policy → Runtime.** Declared via the **Harness** (workload manifests authored alongside application code) and validated by the **Pipeline** (policy-as-code checks against schema and policy). Infrastructure controls authored and maintained in the **Control catalogue**. Runtime guardrails enforced continuously, reported via the **Enterprise knowledge**. The manifest-driven model means application teams declare what they need without writing infrastructure; the platform translates declarations into compliant, governed infrastructure.
+
+**Thread 4 — Enterprise knowledge (return path).** Primarily lives in the **Enterprise knowledge** component. Feeds back into the **Harness** (incident patterns and operational evidence shape specification investment) and into the **Control catalogue** (gate thresholds refined from operational evidence). The unified data layer enables automated return-path feedback from production into design; ownership is currently unresolved at programme level (QA PID §8 dep #6).
+
+#### Controls across the lifecycle
 
 Two actors run through every phase: the **platform team** builds the control plane (golden paths, shared control definitions, pipeline gates, policy-as-code); **application teams** work within it (specify intent, write code, declare infrastructure needs, respond to gate feedback). The pipeline is the interface where both meet.
 
-#### Define & Design
+##### Define & Design
 
 Intent must be verifiable before work begins.
 
@@ -77,7 +142,7 @@ Intent must be verifiable before work begins.
 | Infrastructure declaration | Workload manifests (compute, storage, networking, dependencies) match schema and policy constraints |
 | Monitoring intent declared | Observability requirements stated at design — monitoring is planned, not retrofitted |
 
-#### Code & Build
+##### Code & Build
 
 Shared controls prove their value. The same validation logic runs locally for fast feedback and again in the pipeline for enforcement.
 
@@ -99,7 +164,7 @@ Shared controls prove their value. The same validation logic runs locally for fa
 | Infrastructure-as-code validation | Policy-as-code controls on platform-team and app-team infrastructure code; same CI/CD discipline for infra as for application code |
 | Artifact integrity | Immutable signed release candidate produced; provenance metadata recorded and validated |
 
-#### Validate & Test
+##### Validate & Test
 
 The release candidate is promoted through progressively demanding stages. The artifact does not change between stages — each stage adds confidence. The QA framework's three control areas land primarily here.
 
@@ -124,7 +189,7 @@ The release candidate is promoted through progressively demanding stages. The ar
 | Regression discipline | Mandatory automated regression coverage executed before every release |
 | Exploratory testing | Human, judgment-driven investigation of scenarios that cannot be pre-scripted — edge cases, workflow combinations, real-world usage patterns |
 
-#### Release & Operate
+##### Release & Operate
 
 Validated artifacts are deployed through governed promotion. Operational data flows back into specification investment and gate calibration.
 
@@ -146,50 +211,3 @@ Validated artifacts are deployed through governed promotion. Operational data fl
 | Incident detection and response | Monitoring and alerting against SLOs; break-glass procedures are governed, time-limited, audited, and rare |
 | RCA feedback loop | Material defects trigger full RCA — *what was missing — a spec, a control, or a gate?* Output updates the relevant upstream control; closure verified via the traceability chain. Lower-severity issues feed signal aggregation; pattern-based escalation triggers RCA when a category warrants it |
 | Delivery health telemetry | DORA metrics (deployment frequency, lead time for changes, change failure rate, MTTR); change failure rate correlates deployment and incident data via the data-and-metrics workstream |
-
-### Target Architecture
-
-The components below realise the operating model walked above — their integration, the scope they span, and how controls mature toward continuous assurance. Platform-agnostic in definition; platform-specific in enforcement.
-
-"Platform" in this architecture is a concept — governed promotion with validated controls — not a specific tool. Custom-build on ADO implements it one way; Palantir implements an equivalent natively; Power Platform through its ALM; model registries through validation pipelines.
-
-#### Core Components
-
-Four integrated components make up the target architecture. The platform team builds and maintains each; application teams consume them through designed interfaces.
-
-**Harness.** The developer and agent feedback loop that runs shared controls from the repository — the same code the pipeline runs. Gives engineers and agents fast, trustworthy feedback regardless of where the harness runs (workstation, cloud IDE, remote development VM, agent sandbox). Specifications, lint rules, unit tests, static analysis, and policy checks execute in the harness before reaching CI/CD. The defining property is parity with the pipeline, not location. The harness makes agent-driven development safe by giving agents the same controls as humans. *Owner:* platform team (shared controls); tooling teams (harness packaging).
-
-**Platform.** The single authority on releasability. Re-executes the shared controls the harness ran locally, then adds what cannot run on a workstation: end-to-end tests, NFR acceptance, security scanning, environment-level compliance. Produces immutable signed release candidates with provenance; promotes through progressively demanding environments; enforces gates at each transition. The "platform" manifests differently per class — ADO CI/CD pipelines for custom-build, Palantir native promotion for that platform's apps, Power Platform ALM for low-code, model registry validation for ML — same concept each time. *Owner:* CI/CD workstream (custom-build architecture); platform teams (per-class implementations).
-
-**Policy-as-code and the control catalogue.** The governance workstream maintains the central control catalogue — structure, maturity model, and the platform applicability matrix. Each domain workstream (QA, CI/CD, observability, infrastructure) authors its control definitions platform-agnostically and contributes them upward to the catalogue. Platform workstreams pick up controls and implement them through the enforcement mode appropriate to each platform:
-
-- **Policy-as-code** where the platform supports mechanical enforcement (CI/CD pipelines with policy gates, infrastructure with OPA/Sentinel-equivalent, model registries with validation policies).
-- **Platform-native configuration** where controls are built into the platform's own product (Palantir's native approval gates, Power Platform's ALM, SaaS vendor SLA monitoring).
-- **Team-demonstrated evidence** where neither applies (COTS boundaries, SaaS configuration governance, or immature platform enforcement); teams evidence compliance against the same control definitions.
-
-Teams on mature platforms inherit quality by default, and the cost of governance is low because evidence is a byproduct of delivery. Teams on immature or exception-type platforms evidence compliance manually — legitimate but transient as platforms mature. *Owner:* governance workstream (catalogue + matrix); domain workstreams (control definitions); platform teams (per-platform implementation).
-
-**Enterprise knowledge.** The measurement chain spanning platform telemetry, QA tool output, incident data, and operational metrics — across software classes. DORA metrics, defect detection ratios, and estate-wide quality visibility flow from this layer, with automated return-path feedback from production into specification investment and gate calibration. Operational evidence applies regardless of class: incidents for an Outlook integration inform control sharpening as much as production incidents for a custom-build service. Ownership of the unified data layer is cross-workstream, currently unresolved at programme level (QA PID §8 dep #6). *Owner:* data and metrics workstream (interface); domain workstreams (data contracts).
-
-#### How the Components Connect
-
-Four design threads run through the four components. Each thread crosses multiple components; the components cohere because they collectively realise all four threads.
-
-**Thread 1 — Requirements → Executable Specifications → Evidence.** Authored in the **Harness** (where specifications are drafted and validated against templates). Validated through the **Platform** (where specs are checked against implementation as part of promotion). Governed by the **Control catalogue** (where spec format, coverage, and sign-off controls are defined platform-agnostically). Evidenced via the **Enterprise knowledge** (where traceability chains and coverage metrics flow). In an agent-driven world, specifications are the governance mechanism: they constrain what agents build; the pipeline validates what they produce.
-
-**Thread 2 — Application Code → Pipeline → Production.** Realised by the **Harness** (where code is written with fast, trustworthy feedback from shared controls) and the **Platform** (where the same controls re-execute for enforcement, producing immutable signed artifacts). Gate definitions and thresholds live in the **Control catalogue**. Delivery metrics and defect detection flow through the **Enterprise knowledge**. Key design decision: shared control implementation — validation logic defined once in the repository, executed identically locally and in the pipeline.
-
-**Thread 3 — Infrastructure → Policy → Runtime.** Declared via the **Harness** (workload manifests authored alongside application code) and validated by the **Platform** (policy-as-code checks against schema and policy). Infrastructure controls authored and maintained in the **Control catalogue**. Runtime guardrails enforced continuously, reported via the **Enterprise knowledge**. The manifest-driven model means application teams declare what they need without writing infrastructure; the platform translates declarations into compliant, governed infrastructure.
-
-**Thread 4 — Enterprise knowledge (return path).** Primarily lives in the **Enterprise knowledge** component. Feeds back into the **Harness** (incident patterns and operational evidence shape specification investment) and into the **Control catalogue** (gate thresholds refined from operational evidence). The unified data layer enables automated return-path feedback from production into design; ownership is currently unresolved at programme level (QA PID §8 dep #6).
-
-#### Control Maturity Journey
-
-Controls live in the **Control catalogue** component (see *Core Components*). Each control progresses through four stages of maturity. Progression is not uniform across platforms — the same control may be *gated* on a mature platform (e.g., ADO with policy-as-code on pipeline) and *defined* on an immature one (e.g., a newly-onboarded Palantir workspace). The architecture supports the full progression; the roadmap defines when each control arrives at each stage for each platform.
-
-| | **Defined** | **Measured** | **Gated** | **Governed** |
-|---|---|---|---|---|
-| **What it means** | Control specified in the catalogue with clear criteria. Teams self-assess, supported by assessment tooling (QA tool, checker agents). Enforcement is procedural, not mechanical. | Control observable in platform telemetry. Compliance visible at individual application and estate level. Non-compliance reported (dashboards, scorecards) but not blocked. | Control enforced mechanically. Non-compliance blocks the relevant action (merge, promotion, sign-off). Break-glass exists only as governed, time-limited, audited exception (per principle 8). | Control continuously assured. Enforcement monitored; effectiveness measured (is the control still preventing the failures it was designed for?); definition evolves from operational evidence (per principle 4). Ownership named; audits occur. Mature steady-state. |
-| **Example — *"code changes require peer review"*** | Catalogue specifies *"every change to critical custom-build must be peer-reviewed before merge"*; teams self-assess via QA tool assessment. | ADO reports number and percentage of merges with completed review; scorecard visible to team and at estate level. | ADO branch policy blocks merge without approved review; break-glass governed. | Review effectiveness tracked (do reviewed changes produce fewer production defects?); policy refined (e.g., two reviewers for tier-1 apps); break-glass use audited and trended down. |
-
-The Measured → Gated transition is typically rolled out progressively: visibility (report violations) → soft enforcement (block new, grandfather existing) → hard enforcement (block everything). This staged approach lets platforms move controls to mechanical enforcement without breaking existing teams.
